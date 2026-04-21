@@ -2,16 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
-import { SERVICE_ORDER, getLocationsByState, getProvinceBySlug, getServiceBySlug, getStates } from "@/lib/site-data";
+import { getLocationsByState, getProvinceBySlug, getServiceBySlug } from "@/lib/site-data";
 import { EMERGENCY_PHONE_DISPLAY, SITE_NAME, absoluteUrl, serviceLocationKeyword } from "@/lib/seo";
 
 type PageProps = {
   params: Promise<{ state: string; service: string }>;
 };
-
-export async function generateStaticParams() {
-  return getStates().flatMap((state) => SERVICE_ORDER.map((service) => ({ state: state.slug, service })));
-}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { state, service: serviceSlug } = await params;

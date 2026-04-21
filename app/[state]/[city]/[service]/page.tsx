@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
-import { LOCATION_PAGES, SERVICE_ORDER, getLocation, getServiceBySlug } from "@/lib/site-data";
+import { getLocation, getServiceBySlug } from "@/lib/site-data";
 import { EMERGENCY_PHONE_DISPLAY, EMERGENCY_PHONE_E164, SITE_NAME, absoluteUrl, phoneHref, serviceLocationKeyword } from "@/lib/seo";
 
 type PageProps = {
@@ -10,12 +10,6 @@ type PageProps = {
 };
 
 export const revalidate = 86400;
-
-export async function generateStaticParams() {
-  return LOCATION_PAGES.flatMap((location) =>
-    SERVICE_ORDER.map((service) => ({ state: location.stateSlug, city: location.citySlug, service })),
-  );
-}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { state, city, service: serviceSlug } = await params;
