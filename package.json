@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:locations": "node scripts/generate-ca-locations.mjs",
+    "export:live-links": "node scripts/export-live-links.mjs"
   },
   "dependencies": {
     "next": "16.2.3",

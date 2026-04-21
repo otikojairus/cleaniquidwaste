@@ -1,3 +1,5 @@
+import locationDataset from "@/data/ca-locations.generated.json";
+
 export type IndustryContent = {
   slug: string;
   name: string;
@@ -53,15 +55,6 @@ export type LocationContent = {
   countryName: "Canada";
 };
 
-function slugify(value: string) {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 const BASE_FAQS = [
   {
     q: "Do you offer emergency service?",
@@ -77,54 +70,28 @@ const BASE_FAQS = [
   },
 ];
 
-const ALL_PROVINCES: ProvinceContent[] = [
-  { name: "Alberta", slug: "alberta", abbr: "AB", context: "a mix of dense urban sites, rural acreages, and industrial yards that need dependable pumping support", cities: ["Calgary", "Edmonton", "Red Deer", "Lethbridge", "Medicine Hat"] },
-  { name: "British Columbia", slug: "british-columbia", abbr: "BC", context: "busy coastal service areas, restaurant-heavy corridors, and remote communities where route planning matters", cities: ["Vancouver", "Surrey", "Burnaby", "Victoria", "Kelowna"] },
-  { name: "Manitoba", slug: "manitoba", abbr: "MB", context: "commercial corridors, rural properties, and municipal infrastructure that benefit from predictable maintenance", cities: ["Winnipeg", "Brandon", "Steinbach", "Thompson", "Portage la Prairie"] },
-  { name: "New Brunswick", slug: "new-brunswick", abbr: "NB", context: "port cities, mixed-use commercial sites, and smaller surrounding communities that need reliable cleanup capacity", cities: ["Moncton", "Saint John", "Fredericton", "Miramichi", "Bathurst"] },
-  { name: "Newfoundland and Labrador", slug: "newfoundland-and-labrador", abbr: "NL", context: "coastal properties, rural homes, and industrial locations where weather and access can change quickly", cities: ["St. John's", "Mount Pearl", "Corner Brook", "Gander", "Grand Falls-Windsor"] },
-  { name: "Northwest Territories", slug: "northwest-territories", abbr: "NT", context: "remote work sites and municipal systems that need clear planning and durable service logistics", cities: ["Yellowknife", "Hay River", "Inuvik", "Fort Smith", "Norman Wells"] },
-  { name: "Nova Scotia", slug: "nova-scotia", abbr: "NS", context: "coastal communities, tourism properties, and mixed commercial sites that rely on quick response windows", cities: ["Halifax", "Sydney", "Dartmouth", "Truro", "New Glasgow"] },
-  { name: "Nunavut", slug: "nunavut", abbr: "NU", context: "remote communities where dependable equipment scheduling and straightforward communication are essential", cities: ["Iqaluit", "Rankin Inlet", "Cambridge Bay", "Arviat", "Baker Lake"] },
-  { name: "Ontario", slug: "ontario", abbr: "ON", context: "dense restaurant markets, large commercial properties, and municipal drainage systems with heavy year-round demand", cities: ["Toronto", "Ottawa", "Mississauga", "Hamilton", "London"] },
-  { name: "Prince Edward Island", slug: "prince-edward-island", abbr: "PE", context: "rural homes, cottages, hospitality sites, and seasonal properties that need proactive maintenance", cities: ["Charlottetown", "Summerside", "Stratford", "Cornwall", "Montague"] },
-  { name: "Quebec", slug: "quebec", abbr: "QC", context: "high-density urban properties, industrial sites, and municipal infrastructure with strong maintenance needs", cities: ["Montreal", "Quebec City", "Laval", "Gatineau", "Sherbrooke"] },
-  { name: "Saskatchewan", slug: "saskatchewan", abbr: "SK", context: "rural holdings, service stations, and commercial properties spread across wide coverage areas", cities: ["Saskatoon", "Regina", "Prince Albert", "Moose Jaw", "Yorkton"] },
-  { name: "Yukon", slug: "yukon", abbr: "YT", context: "remote communities and industrial sites where timing, route efficiency, and equipment readiness matter", cities: ["Whitehorse", "Dawson City", "Watson Lake", "Haines Junction", "Carmacks"] },
-];
+const ALL_PROVINCES: ProvinceContent[] = locationDataset.provinces.map((province) => ({
+  name: province.name,
+  slug: province.slug,
+  abbr: province.abbr,
+  context: province.context,
+  cities: province.cities.slice(0, 5).map((city) => city.name),
+}));
 
-const ALL_LOCATION_PAGES: LocationContent[] = ALL_PROVINCES.flatMap((province) =>
-  province.cities.map((cityName, index) => ({
+const ALL_LOCATION_PAGES: LocationContent[] = locationDataset.provinces.flatMap((province) =>
+  province.cities.map((city) => ({
     stateName: province.name,
     stateSlug: province.slug,
     stateAbbr: province.abbr,
-    cityName,
-    citySlug: slugify(cityName),
-    nearbyCities: province.cities.filter((_, cityIndex) => cityIndex !== index).slice(0, 3),
-    countryName: "Canada",
+    cityName: city.name,
+    citySlug: city.slug,
+    nearbyCities: province.cities
+      .filter((candidate) => candidate.slug !== city.slug)
+      .slice(0, 3)
+      .map((candidate) => candidate.name),
+    countryName: "Canada" as const,
   })),
 );
-
-// First rollout: keep roughly 10% of the total customer-facing pages live.
-// Expand later by adding more provinces or cities here.
-export const LAUNCH_PROVINCE_SLUGS = ["ontario"] as const;
-
-export const LAUNCH_CITY_SLUGS_BY_PROVINCE: Partial<Record<(typeof LAUNCH_PROVINCE_SLUGS)[number], string[]>> = {
-  ontario: ["toronto", "ottawa", "mississauga", "hamilton"],
-};
-
-export const PROVINCES: ProvinceContent[] = ALL_PROVINCES.filter((province) =>
-  LAUNCH_PROVINCE_SLUGS.includes(province.slug as (typeof LAUNCH_PROVINCE_SLUGS)[number]),
-);
-
-export const LOCATION_PAGES: LocationContent[] = ALL_LOCATION_PAGES.filter((location) => {
-  if (!LAUNCH_PROVINCE_SLUGS.includes(location.stateSlug as (typeof LAUNCH_PROVINCE_SLUGS)[number])) {
-    return false;
-  }
-
-  const activeCities = LAUNCH_CITY_SLUGS_BY_PROVINCE[location.stateSlug as (typeof LAUNCH_PROVINCE_SLUGS)[number]];
-  return activeCities?.includes(location.citySlug) ?? false;
-});
 
 const SERVICES_INTERNAL: Record<ServiceSlug, ServiceContent> = {
   "grease-trap-cleaning": {
@@ -327,6 +294,74 @@ const SERVICES_INTERNAL: Record<ServiceSlug, ServiceContent> = {
 
 export const SERVICES = SERVICES_INTERNAL;
 export const SERVICE_ORDER = Object.keys(SERVICES) as ServiceSlug[];
+
+const BASE_ROUTE_COUNT = 2;
+const HUB_PAGE_COUNT = SERVICE_ORDER.length;
+const NEAR_ME_PAGE_COUNT = SERVICE_ORDER.length;
+const INDUSTRY_PAGE_COUNT = Object.values(SERVICES).reduce((count, service) => count + service.industries.length, 0);
+const PROVINCE_SERVICE_PAGE_COUNT = ALL_PROVINCES.length * SERVICE_ORDER.length;
+
+export const CLUSTER_PAGE_ESTIMATE = 33660;
+export const LAUNCH_PAGE_PERCENTAGE = 0.1;
+export const LAUNCH_PAGE_TARGET = Math.ceil(CLUSTER_PAGE_ESTIMATE * LAUNCH_PAGE_PERCENTAGE);
+
+const NON_CITY_PAGE_COUNT =
+  BASE_ROUTE_COUNT + HUB_PAGE_COUNT + NEAR_ME_PAGE_COUNT + INDUSTRY_PAGE_COUNT + PROVINCE_SERVICE_PAGE_COUNT;
+
+const MAX_LAUNCH_LOCATION_COUNT = Math.max(
+  0,
+  Math.floor((LAUNCH_PAGE_TARGET - NON_CITY_PAGE_COUNT) / SERVICE_ORDER.length),
+);
+
+const PROVINCE_LAUNCH_PRIORITY = [
+  "AB",
+  "BC",
+  "ON",
+  "SK",
+  "MB",
+  "QC",
+  "NS",
+  "NB",
+  "NL",
+  "PE",
+  "NT",
+  "NU",
+  "YT",
+] as const;
+
+function selectLaunchLocations(locations: LocationContent[], maxCount: number) {
+  if (locations.length <= maxCount) {
+    return locations;
+  }
+
+  const provinceOrder = new Map(PROVINCE_LAUNCH_PRIORITY.map((abbr, index) => [abbr, index]));
+  const locationOrder = new Map(
+    locations.map((location, index) => [`${location.stateAbbr}:${location.citySlug}`, index]),
+  );
+  const sortedLocations = [...locations].sort((a, b) => {
+    const priorityDelta =
+      (provinceOrder.get(a.stateAbbr as (typeof PROVINCE_LAUNCH_PRIORITY)[number]) ?? Number.MAX_SAFE_INTEGER) -
+      (provinceOrder.get(b.stateAbbr as (typeof PROVINCE_LAUNCH_PRIORITY)[number]) ?? Number.MAX_SAFE_INTEGER);
+
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+
+    return (
+      (locationOrder.get(`${a.stateAbbr}:${a.citySlug}`) ?? Number.MAX_SAFE_INTEGER) -
+      (locationOrder.get(`${b.stateAbbr}:${b.citySlug}`) ?? Number.MAX_SAFE_INTEGER)
+    );
+  });
+
+  return sortedLocations.slice(0, maxCount);
+}
+
+export const LOCATION_PAGES: LocationContent[] = selectLaunchLocations(
+  ALL_LOCATION_PAGES,
+  MAX_LAUNCH_LOCATION_COUNT,
+);
+
+export const PROVINCES: ProvinceContent[] = ALL_PROVINCES;
 
 export function getServiceBySlug(slug: string) {
   return SERVICES[slug as ServiceSlug] ?? null;
