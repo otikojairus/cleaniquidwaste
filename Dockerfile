@@ -4,9 +4,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 FROM base AS builder
+ARG BUILD_NODE_OPTIONS=--max-old-space-size=384
+ENV NODE_OPTIONS=$BUILD_NODE_OPTIONS
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
