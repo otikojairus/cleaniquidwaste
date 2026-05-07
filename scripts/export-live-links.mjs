@@ -63,6 +63,7 @@ const INDUSTRIES_BY_SERVICE = {
 };
 
 const PROVINCE_LAUNCH_PRIORITY = ["AB", "BC", "ON", "SK", "MB", "QC", "NS", "NB", "NL", "PE", "NT", "NU", "YT"];
+const REQUIRED_ADDITIONAL_PROVINCES = ["ON", "MB"];
 const CLUSTER_PAGE_ESTIMATE = 33660;
 const LAUNCH_PAGE_PERCENTAGE = 0.1;
 const LAUNCH_PAGE_TARGET = Math.ceil(CLUSTER_PAGE_ESTIMATE * LAUNCH_PAGE_PERCENTAGE);
@@ -84,7 +85,6 @@ function csv(value) {
 
 function selectLaunchCities() {
   const selected = [];
-
   for (const provinceAbbr of PROVINCE_LAUNCH_PRIORITY) {
     const province = locationDataset.provinces.find((item) => item.abbr === provinceAbbr);
     if (!province) {
@@ -93,7 +93,7 @@ function selectLaunchCities() {
 
     for (const city of province.cities) {
       if (selected.length >= MAX_LAUNCH_LOCATION_COUNT) {
-        return selected;
+        break;
       }
 
       selected.push({
@@ -104,6 +104,29 @@ function selectLaunchCities() {
         citySlug: city.slug,
       });
     }
+
+    if (selected.length >= MAX_LAUNCH_LOCATION_COUNT) {
+      break;
+    }
+  }
+
+  for (const provinceAbbr of REQUIRED_ADDITIONAL_PROVINCES) {
+    const province = locationDataset.provinces.find((item) => item.abbr === provinceAbbr);
+    const city = province?.cities.find(
+      (candidate) =>
+        !selected.some((selectedCity) => selectedCity.stateAbbr === provinceAbbr && selectedCity.citySlug === candidate.slug),
+    );
+    if (!province || !city) {
+      continue;
+    }
+
+    selected.push({
+      stateName: province.name,
+      stateAbbr: province.abbr,
+      stateSlug: province.slug,
+      cityName: city.name,
+      citySlug: city.slug,
+    });
   }
 
   return selected;

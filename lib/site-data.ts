@@ -329,31 +329,41 @@ const PROVINCE_LAUNCH_PRIORITY = [
   "YT",
 ] as const;
 
+const REQUIRED_ADDITIONAL_PROVINCES = ["ON", "MB"] as const;
+
 function selectLaunchLocations(locations: LocationContent[], maxCount: number) {
   if (locations.length <= maxCount) {
     return locations;
   }
 
-  const provinceOrder = new Map(PROVINCE_LAUNCH_PRIORITY.map((abbr, index) => [abbr, index]));
-  const locationOrder = new Map(
-    locations.map((location, index) => [`${location.stateAbbr}:${location.citySlug}`, index]),
-  );
-  const sortedLocations = [...locations].sort((a, b) => {
-    const priorityDelta =
-      (provinceOrder.get(a.stateAbbr as (typeof PROVINCE_LAUNCH_PRIORITY)[number]) ?? Number.MAX_SAFE_INTEGER) -
-      (provinceOrder.get(b.stateAbbr as (typeof PROVINCE_LAUNCH_PRIORITY)[number]) ?? Number.MAX_SAFE_INTEGER);
+  const selected: LocationContent[] = [];
+  for (const provinceAbbr of PROVINCE_LAUNCH_PRIORITY) {
+    const provinceLocations = locations.filter((location) => location.stateAbbr === provinceAbbr);
+    for (const location of provinceLocations) {
+      if (selected.length >= maxCount) {
+        break;
+      }
 
-    if (priorityDelta !== 0) {
-      return priorityDelta;
+      selected.push(location);
     }
 
-    return (
-      (locationOrder.get(`${a.stateAbbr}:${a.citySlug}`) ?? Number.MAX_SAFE_INTEGER) -
-      (locationOrder.get(`${b.stateAbbr}:${b.citySlug}`) ?? Number.MAX_SAFE_INTEGER)
-    );
-  });
+    if (selected.length >= maxCount) {
+      break;
+    }
+  }
 
-  return sortedLocations.slice(0, maxCount);
+  for (const provinceAbbr of REQUIRED_ADDITIONAL_PROVINCES) {
+    const additionalLocation = locations.find(
+      (location) =>
+        location.stateAbbr === provinceAbbr &&
+        !selected.some((candidate) => candidate.stateAbbr === location.stateAbbr && candidate.citySlug === location.citySlug),
+    );
+    if (additionalLocation) {
+      selected.push(additionalLocation);
+    }
+  }
+
+  return selected;
 }
 
 export const LOCATION_PAGES: LocationContent[] = selectLaunchLocations(
